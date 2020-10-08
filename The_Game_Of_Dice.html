@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>The Game of Dice</title>
+    <style>
+        body {
+            height: 100vh;
+        }
+
+        .theGameOfDice {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        .userInput {
+            width: 34%;
+            height: 70%;
+            background-color: darkseagreen;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+        }
+
+        .userInput input {
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .userInput #numOfPlayers,
+        .userInput #pointsToAccumulate {
+            width: 270px;
+        }
+
+        .gameWrapper {
+            width: 33%;
+            height: 70%;
+            background-color: darkseagreen;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+        }
+
+        .gameWrapper button {
+            padding: 5px 15px;
+            color: darkslategrey;
+            background-color: ghostwhite;
+            border-color: transparent;
+            cursor: pointer;
+        }
+
+        .gameWrapper .message {
+            color: darkslategrey;
+        }
+
+        .gameWrapper .diceRollValue {
+            width: 24px;
+            height: 24px;
+            background-color: #ffffff;
+            color: black;
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .gameWrapper .penalisedMessage {
+            margin-top: 20px;
+            color: darkslategray;
+        }
+
+        .rankTable {
+            width: 33%;
+            display: flex;
+            justify-content: center;
+            background-color: aliceblue;
+            height: 70%;
+            padding: 18px;
+            overflow-y: scroll;
+        }
+
+        .rankTable table {
+            border: 1px solid black;
+            border-collapse: collapse;
+            height: 50%;
+            width: 70%;
+        }
+
+        .rankTable table th {
+            border: 1px solid grey;
+            color: darkslategrey;
+        }
+
+        .rankTable table td {
+            border: 1px solid grey;
+            padding: 10px;
+            text-align: center;
+            color: grey;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="theGameOfDice">
+        <div class="userInput">
+            <p class="errorMessage"></p>
+            <input id="numOfPlayers" type="number" placeholder="Enter the number of players - (N)" required>
+            <input id="pointsToAccumulate" type="number" placeholder="Enter the total score to be achieved - (M)"
+                required>
+            <input type="submit" onclick="startGame()" />
+        </div>
+        <div class="gameWrapper">
+            <p class="message"></p>
+            <button id="button" onclick="rollDice()">Roll Dice</button>
+            <div class="diceRollValue"></div>
+            <div class="penalisedMessage"></div>
+        </div>
+        <div class="rankTable"></div>
+    </div>
+    <script>
+        let n;
+        let m;
+        let playersCompletedGame = 0;
+        let turn = 0;
+        let playerList = [];
+
+        // player Object with common properties
+        function player(name, rank, totalScore, lastRollValue, isPenalised) {
+            this.name = name;
+            this.rank = rank;
+            this.totalScore = totalScore;
+            this.lastRollValue = lastRollValue;
+            this.isPenalised = isPenalised;
+        };
+
+        // set isPenalised as true if a player got 1 in last two rounds
+        player.prototype.updateIsPenalised = function (currentRollValue) {
+            if (this.lastRollValue == 1 && currentRollValue == 1) {
+                this.isPenalised = true;
+                document.querySelector(".penalisedMessage").innerHTML = "Since You got consecutive 1, you wont be able to roll the dice in the next chance";
+            }
+        }
+
+        // update the total score of a player and increment the playersCompletedGame variable if a player completes the game
+        // Also set the rank property of the player if player completes the game
+        player.prototype.updatePlayerTotalScore = function (currentScore) {
+            this.totalScore += currentScore;
+            if (this.totalScore >= m) {
+                playersCompletedGame += 1;
+                this.rank = playersCompletedGame;
+                document.querySelector(".gameWrapper .message").innerHTML = `${this.name} - Your Rank is ${playersCompletedGame}.`;
+            }
+        }
+
+        // save last roll value of dice
+        // This will help to identify if a player to be penalised(in case of two 1's) or given an extra chance(in case of getting 6)
+        player.prototype.updatePlayerLastRollValue = function (rollValue) {
+            this.lastRollValue = rollValue;
+        }
+
+        // roll the dice and initialise properties of the player        
+        const rollDice = () => {
+            let messageSelector = document.querySelector(".gameWrapper .message");
+
+            // Get Random Dice Value
+            let diceValue = Math.floor(Math.random() * 6) + 1;
+            document.querySelector(".diceRollValue").innerHTML = diceValue;
+
+            // Update Player Total Score
+            playerList[turn].updatePlayerTotalScore(diceValue);
+
+            // Update Is Penalised Property
+            playerList[turn].updateIsPenalised(diceValue);
+
+            // Update Player Last Score
+            playerList[turn].updatePlayerLastRollValue(diceValue);
+
+            // Give extra chance if a player got 6
+            if (diceValue == 6 && playerList[turn].totalScore < m) {
+                messageSelector.innerHTML = `${playerList[turn].name} - Hurrah! You got one free chance. Please click on the button to roll the dice.`;
+            }
+            else {
+                // Show Updated table after each dice roll
+                showUpdatedRankTable();
+
+                // check if players completed the game is equal to total number of players to stop the game
+                if (playersCompletedGame == n) {
+                    document.querySelector(".gameWrapper .message").innerHTML = "Game Over";
+                    document.querySelector(".diceRollValue").innerHTML = "";
+                    document.getElementById("button").remove();
+                }
+                else {
+                    // Identify the player turn who will roll the dice                
+                    updateTurn();
+
+                    // disable the button till the time next player console loads
+                    document.getElementById("button").disabled = true;
+
+                    // load next player console after 3 minutes
+                    setTimeout(updatePlayerState, 3000);
+                }
+            }
+        }
+
+        // show the updated rank table after sorting the table based on the rank in the ascending order
+        // or if rank is same then based on the score in descending order
+        const showUpdatedRankTable = () => {
+            let sortedPlayerList = [...playerList].sort((a, b) => {
+                return a.rank - b.rank || b.totalScore - a.totalScore;
+            });
+            createTable(sortedPlayerList);
+        }
+
+        // create the dynamic table to be shown with Rank, Player Name & Score columns
+        const createTable = (sortedPlayerList) => {
+            let table = document.createElement("table");
+            let tableBody = document.createElement("tbody");
+
+            let tableHeader = document.createElement("thead");
+            let trHeader = document.createElement("tr");
+
+            let rankHeaderElement = document.createElement("th");
+            rankHeaderElement.appendChild(document.createTextNode("Rank"));
+
+            let nameHeaderElement = document.createElement("th");
+            nameHeaderElement.appendChild(document.createTextNode("Name"));
+
+            let scoreHeaderElement = document.createElement("th");
+            scoreHeaderElement.appendChild(document.createTextNode("Points"));
+
+            trHeader.appendChild(rankHeaderElement);
+            trHeader.appendChild(nameHeaderElement);
+            trHeader.appendChild(scoreHeaderElement);
+
+            tableHeader.appendChild(trHeader);
+            table.appendChild(tableHeader);
+
+            sortedPlayerList.forEach((playerObject, index) => {
+                let tableRow = document.createElement("tr");
+
+                let rank = document.createElement("td");
+                rank.appendChild(document.createTextNode(index + 1));
+                let name = document.createElement("td");
+                name.appendChild(document.createTextNode(playerObject.name));
+                let point = document.createElement("td");
+                point.appendChild(document.createTextNode(playerObject.totalScore));
+
+
+                tableRow.appendChild(rank);
+                tableRow.appendChild(name);
+                tableRow.appendChild(point);
+
+                tableBody.appendChild(tableRow);
+            });
+            table.appendChild(tableBody);
+            document.querySelector(".rankTable").innerHTML = "";
+            document.querySelector(".rankTable").appendChild(table);
+        }
+
+        // check which player will get the next turn
+        // if next player is penalised or already completed the game then skip
+        const updateTurn = () => {
+            while (playerList[getNextTurn()].isPenalised || playerList[getNextTurn()].totalScore >= m) {
+                playerList[getNextTurn()].isPenalised = false;
+                turn = getNextTurn();
+            }
+            turn = getNextTurn();
+        }
+
+        // get next turn        
+        const getNextTurn = () => {
+            if (turn == n - 1)
+                return 0;
+            else
+                return turn + 1;
+        } 
+
+        // update the player state
+        const updatePlayerState = () => {
+            document.querySelector(".gameWrapper .message").innerHTML = `Its Your turn ${playerList[turn].name}. Please click on the button to roll the dice.`;
+            document.querySelector(".diceRollValue").innerHTML = "";
+            document.querySelector(".penalisedMessage").innerHTML = "";
+            document.getElementById("button").disabled = false;
+        }               
+        
+        // start the Game
+        const startGame = () => {
+            if (!checkForFieldsValidity()) {
+                return;
+            }
+            initialiseVariables();
+            showGameConsole();
+            initialiseGame();
+            shufflePlayers();
+            document.querySelector(".gameWrapper .message").innerHTML = `Its Your turn ${playerList[turn].name}. Please click on the button to roll the dice.`;
+        }
+
+        // check if all the fields are entered by the user or not
+        const checkForFieldsValidity = () => {
+            if (!(document.getElementById("numOfPlayers").value && document.getElementById("pointsToAccumulate").value)) {
+                document.querySelector(".userInput .errorMessage").innerHTML = "Please enter all the required fields to start the Game";
+                return false;
+            }
+            return true;
+        }
+
+        // If all the constraints are entered by the user then initialise the variables
+        const initialiseVariables = () => {
+            n = document.getElementById("numOfPlayers").value;
+            m = document.getElementById("pointsToAccumulate").value;
+        }
+
+        // Once the constraints are submitted then show the Game Console and hide the User Input console
+        const showGameConsole = () => {
+            document.querySelector(".userInput").style.display = "none";
+            document.querySelector(".gameWrapper").style.display = "flex";
+        }
+
+        // created n number of Player Object with the default values
+        const initialiseGame = () => {
+            for (let i = 1; i <= n; i++) {
+                let playerObj = new player(`Player${i}`, n, 0, 0, false);
+                playerList.push(playerObj);
+            }
+        }
+
+        // Shuffle all the players available in the array
+        const shufflePlayers = () => {
+            playerList.sort(() => Math.random() - 0.5);
+        }    
+    </script>
+</body>
+
+</html>
