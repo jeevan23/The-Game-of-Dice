@@ -302,9 +302,14 @@
         }
 
         // check if all the fields are entered by the user or not
-        const checkForFieldsValidity = () => {
-            if (!(document.getElementById("numOfPlayers").value && document.getElementById("pointsToAccumulate").value)) {
+        // or the values entered are valid or not
+        const checkForFieldsValidity = () => {            
+            if (!document.getElementById("numOfPlayers").value || !document.getElementById("pointsToAccumulate").value) {
                 document.querySelector(".userInput .errorMessage").innerHTML = "Please enter all the required fields to start the Game";
+                return false;
+            }
+            else if (parseInt(document.getElementById("numOfPlayers").value) < 0 || parseInt(document.getElementById("pointsToAccumulate").value) < 0) {
+                document.querySelector(".userInput .errorMessage").innerHTML = "Please enter valid values";
                 return false;
             }
             return true;
