@@ -9,3 +9,4 @@ Important Points
 2)	On opening the page from the browser, a game console will open which will ask the user to enter the values of N(Number of Players) and M(total points).
 3)	If the user won’t submit any of the value then the game wont start and an error message will be shown.
 4)  Negative values are not allowed
+5) There will be a gap of 3 sec between players to roll the dice. For 3 seconds button will be disabled.
